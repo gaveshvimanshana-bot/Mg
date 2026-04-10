@@ -1,4 +1,3 @@
-
 const { cmd } = require("../command");
 const { getGroupAdmins } = require("../lib/functions");
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
@@ -298,3 +297,5 @@ cmd({
 
   return reply(txt, { mentions: owner ? [owner] : [] });
 });
+
+
