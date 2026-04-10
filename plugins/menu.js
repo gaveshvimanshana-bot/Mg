@@ -1,75 +1,78 @@
-const { cmd, commands } = require("../command");
-const fs = require("fs");
-const path = require("path");
+const { cmd } = require("../command");
+const os = require("os");
 
-const pendingMenu = {};
-const numberEmojis = ["0️⃣","1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣"];
+const menuData = {
+  "1": `📥 *DOWNLOAD MENU*
+.fb
+.apk
+.movie`,
 
-const headerImage = "https://github.com/DANUWA-MD/DANUWA-MD/blob/main/images/DANUWA-MD.png?raw=true";
+  "2": `👥 *GROUP MENU*
+.group open
+.group close
+.kick
+.add
+.promote
+.demote
+.tagall`,
+
+  "3": `⚙️ *MAIN MENU*
+.menu
+.ping
+.alive
+.owner`,
+
+  "4": `🔥 *OWNER MENU*
+.restart
+.broadcast`
+};
 
 cmd({
   pattern: "menu",
-  react: "📋",
-  desc: "Show command categories",
+  desc: "Number menu system",
   category: "main",
+  react: "📜",
   filename: __filename
-}, async (test, m, msg, { from, sender, reply }) => {
-  await test.sendMessage(from, { react: { text: "📋", key: m.key } });
+},
+async (conn, mek, m, { from, pushName, reply }) => {
 
-  const commandMap = {};
+  let text = `
+🤖 *BOT MENU*
 
-  for (const command of commands) {
-    if (command.dontAddCommandList) continue;
-    const category = (command.category || "MISC").toUpperCase();
-    if (!commandMap[category]) commandMap[category] = [];
-    commandMap[category].push(command);
+👋 Hi ${pushName || "User"}
+
+👉 Reply with number:
+1️⃣ Download Menu
+2️⃣ Group Menu
+3️⃣ Main Menu
+4️⃣ Owner Menu
+
+📌 Example: reply "1"
+`;
+
+  await conn.sendMessage(from, { text }, { quoted: mek });
+
+  // save session for reply tracking
+  global.menuSession = global.menuSession || {};
+  global.menuSession[from] = true;
+});
+
+
+// 👇 HANDLE NUMBER REPLY
+cmd({
+  on: "text"
+},
+async (conn, mek, m, { from, body, reply }) => {
+
+  if (!global.menuSession || !global.menuSession[from]) return;
+
+  let text = body.trim();
+
+  if (menuData[text]) {
+    return conn.sendMessage(from, { text: menuData[text] }, { quoted: mek });
   }
 
-  const categories = Object.keys(commandMap);
+  if (["1","2","3","4"].includes(text)) return;
 
-  let menuText = `*MAIN MENU*\n`;
-  menuText += `───────────────────────\n`;
-
-  categories.forEach((cat, i) => {
-    const emojiIndex = (i + 1).toString().split("").map(n => numberEmojis[n]).join("");
-    menuText += `┃ ${emojiIndex} *${cat}* (${commandMap[cat].length})\n`;
-  });
-
-  menuText += `───────────────────────\n`;
-
-  await test.sendMessage(from, {
-    image: { url: headerImage },
-    caption: menuText,
-  }, { quoted: m });
-
-  pendingMenu[sender] = { step: "category", commandMap, categories };
+  // if user sends other text → ignore
 });
-
-cmd({
-  filter: (text, { sender }) => pendingMenu[sender] && pendingMenu[sender].step === "category" && /^[1-9][0-9]*$/.test(text.trim())
-}, async (test, m, msg, { from, body, sender, reply }) => {
-  await test.sendMessage(from, { react: { text: "✅", key: m.key } });
-
-  const { commandMap, categories } = pendingMenu[sender];
-  const index = parseInt(body.trim()) - 1;
-  if (index < 0 || index >= categories.length) return reply("❌ Invalid selection.");
-
-  const selectedCategory = categories[index];
-  const cmdsInCategory = commandMap[selectedCategory];
-
-  let cmdText = `*${selectedCategory} COMMANDS*\n`;
-  cmdsInCategory.forEach(c => {
-    const patterns = [c.pattern, ...(c.alias || [])].filter(Boolean).map(p => `.${p}`);
-    cmdText += `${patterns.join(", ")} - ${c.desc || "No description"}\n`;
-  });
-  cmdText += `───────────────────────\n`;
-  cmdText += `Total Commands: ${cmdsInCategory.length}\n`;
-
-  await test.sendMessage(from, {
-    image: { url: headerImage },
-    caption: cmdText,
-  }, { quoted: m });
-
-  delete pendingMenu[sender];
-});
-
