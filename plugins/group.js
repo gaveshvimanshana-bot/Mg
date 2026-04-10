@@ -1,153 +1,151 @@
 const { cmd } = require("../command");
 
+async function checkAdmin(conn, from, sender) {
+  const metadata = await conn.groupMetadata(from);
+  const participants = metadata.participants;
+
+  const admins = participants
+    .filter(p => p.admin !== null)
+    .map(p => p.id);
+
+  return admins.includes(sender);
+}
+
+async function checkBotAdmin(conn, from) {
+  const metadata = await conn.groupMetadata(from);
+  const participants = metadata.participants;
+
+  const botId = conn.user.id.split(":")[0] + "@s.whatsapp.net";
+
+  const admins = participants
+    .filter(p => p.admin !== null)
+    .map(p => p.id);
+
+  return admins.includes(botId);
+}
+
+/* ================= OPEN / CLOSE ================= */
 cmd({
   pattern: "group",
-  desc: "Open/Close group",
   category: "group",
   react: "⚙️",
   filename: __filename
 },
-async (conn, mek, m, { from, args, isGroup, isAdmins, isBotAdmins, reply }) => {
-  try {
-    if (!isGroup) return reply("❌ This command only works in groups!");
-    if (!isAdmins) return reply("❌ You must be an admin!");
-    if (!isBotAdmins) return reply("❌ Bot must be admin!");
+async (conn, mek, m, { from, args, isGroup, reply }) => {
 
-    if (args[0] === "open") {
-      await conn.groupSettingUpdate(from, "not_announcement");
-      reply("✅ Group is now *OPEN* for everyone!");
-    } else if (args[0] === "close") {
-      await conn.groupSettingUpdate(from, "announcement");
-      reply("🔒 Group is now *CLOSED* (only admins can send messages)");
-    } else {
-      reply("⚙️ Usage:\n.group open\n.group close");
-    }
+  if (!isGroup) return reply("❌ Group only!");
 
-  } catch (e) {
-    console.log(e);
-    reply("❌ Error!");
+  const isAdmin = await checkAdmin(conn, from, m.sender);
+  const isBotAdmin = await checkBotAdmin(conn, from);
+
+  if (!isAdmin) return reply("❌ Admin only!");
+  if (!isBotAdmin) return reply("❌ Bot must be admin!");
+
+  if (args[0] === "open") {
+    await conn.groupSettingUpdate(from, "not_announcement");
+    return reply("✅ Group OPEN now");
   }
+
+  if (args[0] === "close") {
+    await conn.groupSettingUpdate(from, "announcement");
+    return reply("🔒 Group CLOSED now");
+  }
+
+  reply("Usage:\n.group open\n.group close");
 });
 
 
-// 👥 ADD MEMBER
-cmd({
-  pattern: "add",
-  desc: "Add member",
-  category: "group",
-  filename: __filename
-},
-async (conn, mek, m, { from, args, isGroup, isAdmins, isBotAdmins, reply }) => {
-  if (!isGroup) return reply("Group only!");
-  if (!isAdmins) return reply("Admin only!");
-  if (!isBotAdmins) return reply("Bot must be admin!");
-
-  let number = args[0];
-  if (!number) return reply("Give number!\nExample: .add 947XXXXXXXX");
-
-  await conn.groupParticipantsUpdate(from, [number + "@s.whatsapp.net"], "add");
-  reply("✅ Member added!");
-});
-
-
-// ❌ REMOVE MEMBER
+/* ================= KICK ================= */
 cmd({
   pattern: "kick",
-  desc: "Remove member",
   category: "group",
   filename: __filename
 },
-async (conn, mek, m, { from, isGroup, isAdmins, isBotAdmins, mentionedJid, reply }) => {
+async (conn, mek, m, { from, isGroup, reply, mentionedJid }) => {
+
   if (!isGroup) return reply("Group only!");
-  if (!isAdmins) return reply("Admin only!");
-  if (!isBotAdmins) return reply("Bot must be admin!");
+
+  const isAdmin = await checkAdmin(conn, from, m.sender);
+  const isBotAdmin = await checkBotAdmin(conn, from);
+
+  if (!isAdmin) return reply("❌ Admin only!");
+  if (!isBotAdmin) return reply("❌ Bot must be admin!");
 
   let user = mentionedJid[0];
-  if (!user) return reply("Tag user!");
+  if (!user) return reply("Tag someone!");
 
   await conn.groupParticipantsUpdate(from, [user], "remove");
-  reply("❌ Member removed!");
+  reply("❌ User removed");
 });
 
 
-// 🔼 PROMOTE
+/* ================= PROMOTE ================= */
 cmd({
   pattern: "promote",
-  desc: "Promote admin",
   category: "group",
   filename: __filename
 },
-async (conn, mek, m, { from, isGroup, isAdmins, isBotAdmins, mentionedJid, reply }) => {
+async (conn, mek, m, { from, isGroup, reply, mentionedJid }) => {
+
   if (!isGroup) return reply("Group only!");
-  if (!isAdmins) return reply("Admin only!");
-  if (!isBotAdmins) return reply("Bot must be admin!");
+
+  const isAdmin = await checkAdmin(conn, from, m.sender);
+  const isBotAdmin = await checkBotAdmin(conn, from);
+
+  if (!isAdmin) return reply("❌ Admin only!");
+  if (!isBotAdmin) return reply("❌ Bot must be admin!");
 
   let user = mentionedJid[0];
   if (!user) return reply("Tag user!");
 
   await conn.groupParticipantsUpdate(from, [user], "promote");
-  reply("🔼 Promoted to admin!");
+  reply("🔼 Promoted");
 });
 
 
-// 🔽 DEMOTE
+/* ================= DEMOTE ================= */
 cmd({
   pattern: "demote",
-  desc: "Demote admin",
   category: "group",
   filename: __filename
 },
-async (conn, mek, m, { from, isGroup, isAdmins, isBotAdmins, mentionedJid, reply }) => {
+async (conn, mek, m, { from, isGroup, reply, mentionedJid }) => {
+
   if (!isGroup) return reply("Group only!");
-  if (!isAdmins) return reply("Admin only!");
-  if (!isBotAdmins) return reply("Bot must be admin!");
+
+  const isAdmin = await checkAdmin(conn, from, m.sender);
+  const isBotAdmin = await checkBotAdmin(conn, from);
+
+  if (!isAdmin) return reply("❌ Admin only!");
+  if (!isBotAdmin) return reply("❌ Bot must be admin!");
 
   let user = mentionedJid[0];
   if (!user) return reply("Tag user!");
 
   await conn.groupParticipantsUpdate(from, [user], "demote");
-  reply("🔽 Removed admin!");
+  reply("🔽 Demoted");
 });
 
 
-// 📢 TAG ALL
+/* ================= TAGALL ================= */
 cmd({
   pattern: "tagall",
-  desc: "Tag everyone",
-  category: "group",
-  filename: __filename
-},
-async (conn, mek, m, { from, participants, isGroup, reply }) => {
-  if (!isGroup) return reply("Group only!");
-
-  let teks = "📢 Tagging All Members:\n\n";
-  let mentions = [];
-
-  for (let mem of participants) {
-    teks += `@${mem.id.split("@")[0]}\n`;
-    mentions.push(mem.id);
-  }
-
-  conn.sendMessage(from, { text: teks, mentions });
-});
-
-
-// ℹ️ GROUP INFO
-cmd({
-  pattern: "ginfo",
-  desc: "Group info",
   category: "group",
   filename: __filename
 },
 async (conn, mek, m, { from, isGroup, reply }) => {
+
   if (!isGroup) return reply("Group only!");
 
-  let metadata = await conn.groupMetadata(from);
+  const metadata = await conn.groupMetadata(from);
 
-  let text = `📌 *Group Info*\n\n`;
-  text += `📛 Name: ${metadata.subject}\n`;
-  text += `👥 Members: ${metadata.participants.length}\n`;
-  text += `📝 Desc: ${metadata.desc || "No description"}\n`;
+  let text = "📢 Tag All Members:\n\n";
+  let mentions = [];
 
-  reply(text);
+  for (let p of metadata.participants) {
+    text += `@${p.id.split("@")[0]}\n`;
+    mentions.push(p.id);
+  }
+
+  conn.sendMessage(from, { text, mentions });
 });
